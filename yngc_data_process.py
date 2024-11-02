@@ -7,11 +7,10 @@ from io import BytesIO
 # 设置页面配置
 st.set_page_config(
     page_title="YNGC数据处理工具",  # 设置应用名称
-    page_icon=":material/home:",             # 设置应用图标
-    # layout="wide"               # 设置布局为宽模式
+    page_icon=":material/home:",   # 设置应用图标
 )
 
-# 创建下载按钮
+# 将 Pandas DataFrame 对象转换为 Excel 文件格式的字节流
 def to_excel(df):
     output = BytesIO()
     # 使用 openpyxl 作为引擎
@@ -21,7 +20,7 @@ def to_excel(df):
     processed_data = output.getvalue()
     return processed_data
 
-# 创建下载按钮的函数
+# 创建自定义下载按钮的函数
 def create_download_button(df, label):
     excel_file = to_excel(df)
     b64 = base64.b64encode(excel_file).decode()
@@ -65,10 +64,15 @@ if uploaded_file is not None:
     tdf['下样时间'] = tdf['下样时间'].astype(str)
     
     # 提取关键信息
-    # 提取后四位作为整型数字
+    # 提取批次节点
     tdf['批次号'] = tdf['样品批号'].str[-4:].astype(int)
     # 根据字符串长度提取中间的一位或两位
     tdf['产线'] = tdf['样品批号'].apply(lambda x: x[6] if len(x) == 11 else x[6:8])
+
+    # 记录本次处理后的批次节点数据
+    pc_max = tdf.groupby('产线')['批次号'].max().reset_index()
+    pc_max['产线'] = pc_max['产线'].astype(int)
+    pc_max = pc_max.sort_values(by=['产线'])
 
     cdf = edited_df
     # 筛选出批次节点不为None的行
@@ -93,7 +97,6 @@ if uploaded_file is not None:
     df_yellow = result_df[result_df['乙烯基链节摩尔分数\n%'] == '0.16']
     df_blue = result_df[result_df['乙烯基链节摩尔分数\n%'] =='0.23' ]
     
-    # 创建 Streamlit 应用程序
     st.subheader("3.Excel文件下载",divider='grey')
 
     # 创建一个 2x2 的布局
@@ -112,3 +115,5 @@ if uploaded_file is not None:
 
         st.subheader("MVQ110-3_蓝色", divider='blue')
         create_download_button(df_blue, "MVQ110-3_蓝色")
+    st.subheader("各产线批次节点数据", divider='grey')
+    create_download_button(pc_max, "当前各产线批次节点")
